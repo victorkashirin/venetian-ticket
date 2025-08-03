@@ -18,10 +18,11 @@ jobs:
       # ----  use GitHub Cache to keep ./cache/ between runs  ----
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         with:
-          path: cache
+          path: cache/
           key: biennale-ticket-cache
+          restore-keys: biennale-ticket-
 
       # Python 3.12 is fine; pip only needs 'requests'
       - uses: actions/setup-python@v5
@@ -50,14 +51,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-
-      # Save updated cache back to same key
-      - name: Save cache
-        if: always() # save even if script failed  
-        uses: actions/cache/save@v4
-        with:
-          path: cache
-          key: biennale-ticket-cache
 
       - name: Debug - Show final cache state
         if: always()
