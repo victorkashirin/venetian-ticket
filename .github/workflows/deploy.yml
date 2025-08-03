@@ -17,11 +17,13 @@ jobs:
 
       # ----  use GitHub Cache to keep ./cache/ between runs  ----
       - name: Restore previous page snapshot
+        id: cache-restore
         uses: actions/cache/restore@v4
         with:
           path: cache
-          key: biennale-ticket-cache
+          key: biennale-ticket-cache-${{ github.run_id }}
           restore-keys: |
+            biennale-ticket-cache-
             biennale-ticket-cache
 
       # Python 3.12 is fine; pip only needs 'requests'
@@ -32,19 +34,44 @@ jobs:
       - name: Install deps
         run: pip install --no-cache-dir requests beautifulsoup4 python-dotenv
 
-      - name: Debug - Show cache folder state
+      - name: Debug - Show cache restore status and folder state
         run: |
-          echo "=== Cache folder debug info ==="
+          echo "=== Cache debug info ==="
+          echo "Cache restore result: ${{ steps.cache-restore.outputs.cache-hit }}"
+          echo "Cache restore key: ${{ steps.cache-restore.outputs.cache-matched-key }}"
           if [ -d "cache" ]; then
             echo "Cache folder exists:"
             ls -la cache/
+            echo "File count: $(find cache -type f | wc -l)"
           else
             echo "Cache folder does not exist"
           fi
-          echo "================================"
+          echo "=========================="
 
       - name: Run watcher
         run: python run.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+
+      # Save the updated cache for next run
+      - name: Save cache snapshot
+        if: always() # save even if script failed
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: biennale-ticket-cache-${{ github.run_id }}
+
+      - name: Debug - Show final cache state
+        if: always()
+        run: |
+          echo "=== Final cache state ==="
+          if [ -d "cache" ]; then
+            echo "Cache folder contents after run:"
+            ls -la cache/
+            echo "File count: $(find cache -type f | wc -l)"
+            echo "Total cache size: $(du -sh cache/ | cut -f1)"
+          else
+            echo "Cache folder still does not exist"
+          fi
+          echo "========================="
