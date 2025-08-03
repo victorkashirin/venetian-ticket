@@ -29,7 +29,7 @@ PAGES = [
 ]
 
 CACHE_DIR  = Path("cache")
-HEADERS    = {"User-Agent": "ticket-watcher/1.0 (+https://github.com/your/repo)"}
+HEADERS    = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 TIMEOUT    = 20  # seconds
 
 # Telegram configuration
@@ -58,7 +58,7 @@ def extract_text_content(html: str) -> str:
     return '\n'.join(chunk for chunk in chunks if chunk)
 
 def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> str:
-    """Generate a short diff showing changes between old and new text."""
+    """Generate a short diff showing only new information (additions)."""
     if not old_text:
         # If no old text, show first few lines of new text
         new_lines = new_text.split('\n')[:max_lines]
@@ -80,13 +80,22 @@ def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> str:
     if not diff:
         return "📝 Content changed but no clear diff available"
 
-    # Filter out header lines and limit to max_lines
-    relevant_diff = [line for line in diff[3:] if line.startswith(('+', '-', ' '))][:max_lines]
+    # Filter to show only additions (lines starting with '+') and context lines
+    additions_only = []
+    for line in diff[3:]:  # Skip header lines
+        if line.startswith('+'):
+            additions_only.append(line)
+        elif line.startswith(' ') and additions_only:
+            # Include context lines only if we already have some additions
+            additions_only.append(line)
+    
+    # Limit to max_lines
+    additions_only = additions_only[:max_lines]
 
-    if not relevant_diff:
-        return "📝 Content structure changed"
+    if not additions_only:
+        return "📝 Content changed (no new information detected)"
 
-    return f"📝 Changes:\n<code>" + '\n'.join(relevant_diff) + "</code>"
+    return f"📝 New information:\n<code>" + '\n'.join(additions_only) + "</code>"
 
 def send_telegram_message(message: str) -> bool:
     """Send a message to Telegram channel. Returns True if successful."""
