@@ -1,0 +1,49 @@
+name: Biennale-ticket-monitor
+
+on:
+  # every 5 minutes (the shortest legal interval) :contentReference[oaicite:0]{index=0}
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # manual run button
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    # avoid overlapping runs if one is still going
+    concurrency: biennale-monitor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ----  use GitHub Cache to keep ./cache/ between runs  ----
+      - name: Restore previous page snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: cache
+          key: biennale-ticket-cache
+          restore-keys: |
+            biennale-ticket-cache
+
+      # Python 3.12 is fine; pip only needs 'requests'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install --no-cache-dir requests beautifulsoup4 python-dotenv
+
+      - name: Run watcher
+        run: python run.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+
+      # Save the new snapshot under a fresh key so the cache updates
+      - name: Save snapshot to cache
+        if: always() # save even if script failed
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: biennale-ticket-cache
+          restore-keys: biennale-ticket-
+          # using run_id guarantees a unique key each run :contentReference[oaicite:1]{index=1}
