@@ -32,6 +32,17 @@ jobs:
       - name: Install deps
         run: pip install --no-cache-dir requests beautifulsoup4 python-dotenv
 
+      - name: Debug - Show cache folder state
+        run: |
+          echo "=== Cache folder debug info ==="
+          if [ -d "cache" ]; then
+            echo "Cache folder exists:"
+            ls -la cache/
+          else
+            echo "Cache folder does not exist"
+          fi
+          echo "================================"
+
       - name: Run watcher
         run: python run.py
         env:

@@ -131,6 +131,12 @@ def main() -> None:
         cache_file = CACHE_DIR / page["filename"]
 
         print(f"Checking {page_name}...")
+        
+        # Debug: Check if cache file exists
+        if cache_file.exists():
+            print(f"  📁 Cache file found: {cache_file}")
+        else:
+            print(f"  📁 Cache file missing: {cache_file} (first run or cache cleared)")
 
         try:
             new_html = fetch_page(url)
