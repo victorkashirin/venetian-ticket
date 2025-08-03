@@ -18,11 +18,13 @@ jobs:
       # ----  use GitHub Cache to keep ./cache/ between runs  ----
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: cache/
-          key: biennale-ticket-cache
-          restore-keys: biennale-ticket-
+          key: biennale-ticket-cache-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            biennale-ticket-cache-
+            biennale-ticket-
 
       # Python 3.12 is fine; pip only needs 'requests'
       - uses: actions/setup-python@v5
@@ -34,13 +36,18 @@ jobs:
 
       - name: Debug - Show cache restore status and folder state
         run: |
-          echo "=== Cache debug info ==="
+          echo "=== Cache debug info ($(date)) ==="
+          echo "Run ID: ${{ github.run_id }}, Run Attempt: ${{ github.run_attempt }}"
           echo "Cache restore result: ${{ steps.cache-restore.outputs.cache-hit }}"
           echo "Cache restore key: ${{ steps.cache-restore.outputs.cache-matched-key }}"
           if [ -d "cache" ]; then
             echo "Cache folder exists:"
             ls -la cache/
             echo "File count: $(find cache -type f | wc -l)"
+            if [ -f "cache/tickets.html" ]; then
+              echo "tickets.html size: $(stat -c%s cache/tickets.html 2>/dev/null || stat -f%z cache/tickets.html) bytes"
+              echo "tickets.html modified: $(stat -c%y cache/tickets.html 2>/dev/null || stat -f%Sm cache/tickets.html)"
+            fi
           else
             echo "Cache folder does not exist"
           fi
@@ -52,15 +59,26 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
 
+      - name: Save cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: cache/
+          key: biennale-ticket-cache-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Debug - Show final cache state
         if: always()
         run: |
-          echo "=== Final cache state ==="
+          echo "=== Final cache state ($(date)) ==="
           if [ -d "cache" ]; then
             echo "Cache folder contents after run:"
             ls -la cache/
             echo "File count: $(find cache -type f | wc -l)"
             echo "Total cache size: $(du -sh cache/ | cut -f1)"
+            if [ -f "cache/tickets.html" ]; then
+              echo "tickets.html final size: $(stat -c%s cache/tickets.html 2>/dev/null || stat -f%z cache/tickets.html) bytes"
+              echo "tickets.html final modified: $(stat -c%y cache/tickets.html 2>/dev/null || stat -f%Sm cache/tickets.html)"
+            fi
           else
             echo "Cache folder still does not exist"
           fi
