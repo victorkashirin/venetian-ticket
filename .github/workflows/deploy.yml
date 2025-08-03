@@ -37,12 +37,3 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-
-      # Save the new snapshot under a fresh key so the cache updates
-      - name: Save snapshot to cache
-        if: always() # save even if script failed
-        uses: actions/cache/save@v4
-        with:
-          path: cache
-          key: biennale-ticket-cache-${{ github.run_id }}
-          # using run_id guarantees a unique key each run
