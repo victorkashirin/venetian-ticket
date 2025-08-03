@@ -44,6 +44,5 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: cache
-          key: biennale-ticket-cache
-          restore-keys: biennale-ticket-
-          # using run_id guarantees a unique key each run :contentReference[oaicite:1]{index=1}
+          key: biennale-ticket-cache-${{ github.run_id }}
+          # using run_id guarantees a unique key each run

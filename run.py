@@ -12,16 +12,20 @@ load_dotenv()  # Load environment variables from .env file
 # List of pages to monitor
 PAGES = [
     {
-        "page_name": "Biennale Tickets",
-        "url": "https://www.labiennale.org/it/cinema/2025/informazioni#tickets",
-        "filename": "tickets_text.txt"
+        "page_name": "Informazioni",
+        "url": "https://www.labiennale.org/it/cinema/2025/informazioni",
+        "filename": "informazioni.txt"
+    },
+    {
+        "page_name": "labiennale.org/it",
+        "url": "https://www.labiennale.org/it",
+        "filename": "labienalle_it.txt"
+    },
+    {
+        "page_name": "labiennale.org/it/cinema/2025",
+        "url": "https://www.labiennale.org/it/cinema/2025",
+        "filename": "labienalle_cinema.txt"
     }
-    # Add more pages here as needed
-    # {
-    #     "page_name": "Another Page",
-    #     "url": "https://example.com/page",
-    #     "filename": "another_page_text.txt"
-    # }
 ]
 
 CACHE_DIR  = Path("cache")
