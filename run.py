@@ -32,6 +32,40 @@ CACHE_DIR  = Path("cache")
 HEADERS    = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 TIMEOUT    = 20  # seconds
 
+# Keywords to look for in new content (case-insensitive)
+TICKET_KEYWORDS = [
+    'biglietti',      # tickets
+    'biglietto',      # ticket
+    'prezzo',         # price
+    'prezzi',         # prices
+    'costo',          # cost
+    'vendita',        # sale
+    'acquisto',       # purchase
+    'prenotazione',   # reservation
+    'prenotazioni',   # reservations
+    'disponibili',    # available
+    'disponibile',    # available
+    'aperto',         # open
+    'apertura',       # opening
+    'chiusura',       # closing
+    'orari',          # hours/schedule
+    'orario',         # hour/schedule
+    'euro',           # euro
+    '€',              # euro symbol
+    'gratuito',       # free
+    'gratis',         # free
+    'posti',          # seats
+    'posto',          # seat
+    'sala',           # hall/room
+    'cinema',         # cinema
+    'film',           # film/movie
+    'proiezione',     # screening
+    'proiezioni',     # screenings
+    'festival',       # festival
+    'biennale',       # biennale
+    'venezia'         # venice
+]
+
 # Telegram configuration
 KEY = os.getenv('TELEGRAM_BOT_TOKEN', '')  # Bot token stored in environment variable
 CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '')  # Channel ID (e.g., @your_channel or -100123456789)
@@ -57,12 +91,19 @@ def extract_text_content(html: str) -> str:
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
     return '\n'.join(chunk for chunk in chunks if chunk)
 
-def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> str:
-    """Generate a short diff showing only new information (additions)."""
+def contains_keywords(text: str, keywords: list) -> bool:
+    """Check if text contains any of the specified keywords (case-insensitive)."""
+    text_lower = text.lower()
+    return any(keyword.lower() in text_lower for keyword in keywords)
+
+def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> tuple[str, bool]:
+    """Generate a short diff showing only new information (additions). Returns (diff_text, has_keywords)."""
     if not old_text:
         # If no old text, show first few lines of new text
         new_lines = new_text.split('\n')[:max_lines]
-        return f"📝 New content (first {len(new_lines)} lines):\n" + '\n'.join(f"+ {line}" for line in new_lines)
+        diff_text = f"📝 New content (first {len(new_lines)} lines):\n" + '\n'.join(f"+ {line}" for line in new_lines)
+        has_keywords = contains_keywords('\n'.join(new_lines), TICKET_KEYWORDS)
+        return diff_text, has_keywords
 
     old_lines = old_text.split('\n')
     new_lines = new_text.split('\n')
@@ -78,13 +119,19 @@ def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> str:
     ))
 
     if not diff:
-        return "📝 Content changed but no clear diff available"
+        return "📝 Content changed but no clear diff available", False
 
     # Filter to show only additions (lines starting with '+') and context lines
     additions_only = []
+    keyword_additions = []  # Track additions with keywords
+    
     for line in diff[3:]:  # Skip header lines
         if line.startswith('+'):
             additions_only.append(line)
+            # Check if this addition contains keywords
+            line_content = line[1:].strip()  # Remove '+' prefix
+            if contains_keywords(line_content, TICKET_KEYWORDS):
+                keyword_additions.append(line)
         elif line.startswith(' ') and additions_only:
             # Include context lines only if we already have some additions
             additions_only.append(line)
@@ -93,9 +140,12 @@ def generate_diff(old_text: str, new_text: str, max_lines: int = 10) -> str:
     additions_only = additions_only[:max_lines]
 
     if not additions_only:
-        return "📝 Content changed (no new information detected)"
+        return "📝 Content changed (no new information detected)", False
 
-    return f"📝 New information:\n<code>" + '\n'.join(additions_only) + "</code>"
+    diff_text = f"📝 New information:\n<code>" + '\n'.join(additions_only) + "</code>"
+    has_keywords = len(keyword_additions) > 0
+    
+    return diff_text, has_keywords
 
 def send_telegram_message(message: str) -> bool:
     """Send a message to Telegram channel. Returns True if successful."""
@@ -156,13 +206,18 @@ def main() -> None:
 
             if old_hash != new_hash:
                 print(f"🎫 CHANGE DETECTED on {page_name}!")
-                diff_text = generate_diff(old_text, new_text)
-                changes_detected.append({
-                    "page_name": page_name,
-                    "url": url,
-                    "hash": new_hash,
-                    "diff": diff_text
-                })
+                diff_text, has_keywords = generate_diff(old_text, new_text)
+                
+                if has_keywords:
+                    print(f"  ✅ Keywords found in changes - will notify")
+                    changes_detected.append({
+                        "page_name": page_name,
+                        "url": url,
+                        "hash": new_hash,
+                        "diff": diff_text
+                    })
+                else:
+                    print(f"  ⏭️ No relevant keywords found in changes - skipping notification")
 
             else:
                 print(f"No change detected on {page_name}.")
